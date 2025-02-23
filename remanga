@@ -1,0 +1,195 @@
+#!/bin/bash
+
+cd "$(dirname "$0")"
+echo "[File] Re-Manga Version 1.0 by RafaeloHQ"
+
+
+linkHistory() {
+    cd "$(dirname "$0")"
+
+    if [ -f "links.txt" ]; then
+        echo "[File]: "$1" appended in links.txt"
+        echo $1 >> links.txt
+    else
+        touch links.txt
+        echo "[File]: links.txt created"
+        echo "[File]: "$1" appended to links.txt"
+        echo $1 >> links.txt
+    fi
+}
+tempfolderscrub() {
+    cd "$(dirname "$0")" || return 1
+    rm -rf $(ls -a | grep .temp)
+}
+
+
+destinationRead() {
+    local destination
+    read -r destination < destination.txt
+    echo $destination
+}
+
+if [ "$1" = "-r" ]; then
+    while IFS= read -r link; do
+        echo -e "[Automation]: Downloading $link"
+        DLM $link 
+        sleep 5
+    done < list.txt
+fi
+
+if [ "$#" -ne 1 ]; then
+    echo "[Argument] Error: Expected one argument, but got $#."
+    exit 1
+else
+    case "$1" in
+        http://*|https://*)
+            echo "[Argument] Checking Input: $1"
+            link_check=$(curl -s -o /dev/null -I -w "%{http_code}" -L "$1" | head -n 1 2>/dev/null)
+            if [ "$link_check" -eq 200 ]; then 
+                echo "[Argument] HTTP code 200: Link Available"
+            elif [ "$link_check" -eq 404 ]; then
+                echo "[Argument] HTTP code 404: Link Unavailable"
+                exit 1
+            elif [ "$link_check" -ge 500 ] && [ "$link_check" -lt 600 ]; then 
+                echo "[Argument] HTTP code $link_check: Server Error"
+                exit 1
+            elif [ "$link_check" -ge 400 ] && [ "$link_check" -lt 500 ]; then
+                echo "[Argument] HTTP code $link_check: Client Error"
+                exit 1
+            else
+                echo "[Argument] Unexpected HTTP code: $link_check"
+            fi
+
+            ;;
+        *)
+            echo "[Argument] Invalid Input: $1"
+            exit 1
+            ;;
+    esac
+fi
+
+# Create Temporary Folder
+tempname=".temp$(echo $$)" 
+if [ ! -d $tempname ]; then
+    mkdir $tempname
+    echo "[Files] Temporary folder created on $(pwd)/$tempname"
+    cd $tempname || exit #change working directory to the Temporary Folder
+else
+    echo "[Files] Temporary folder found on $(pwd)/$tempname"
+    cd $tempname || exit #change working directory to the Temporary Folder
+fi
+
+# Download files using Gert, change working directory to inner folder
+gert "$1" 
+cd */ || exit
+#Create a temporary txt file inside the inner folder.
+filecount=$(mktemp)
+
+#List contents of Gert Directory and store to temporary file
+ls -1tr 2>/dev/null > "$filecount"
+
+#Rename all files inside Gert Directory
+count=1 ##start a counting variable 
+
+while IFS= read -r file; do
+    new_name="$(printf "%02d.%s" "$count" "${file##*.}" )"
+    echo "[Files]: Renaming $file to $new_name"
+    mv "$file" "$new_name"
+    count="$(( count + 1 ))"
+done < $filecount
+
+#delete temporary file
+rm "$filecount" 
+
+#use rezip to retrieve the post title and pack the images
+#arg 1: link 
+#arg 2: image directory
+cd "$(dirname "$0")"
+postTitle=$(python rezip.py "$1" "$(pwd)/$tempname/$(cd $tempname && ls)")
+
+#delete the temporary folder
+rm -rf "$(dirname "$0")/$tempname"
+echo "[File]: Temp folder deleted."
+
+if [ -d "$tempname" ]; then
+    rm -rf "$(dirname "$0"/$tempname)"
+    echo "[File]: Persistent temp folder deleted"
+fi
+
+
+#WARNING WARNING WARNING WARNING WARNING
+#FILE TRANSFER LOCATIONS ARE SUBJECTIVE MOVING FORWARD
+#READ DOCUMENTATION FOR MORE
+
+#Handle the file transfer
+if [ -e "destination.txt" ]; then #check if the destination file exists
+    if [ -s "destination.txt" ]; then #check if the destination file is not empty
+    
+        #call the destinationRead function to get the destination
+        destination=$(destinationRead)
+
+        #assess if the input destination is valid
+        if [ ! -d "$destination" ]; then
+            echo "[Configuration]: destination.txt contains invalid or deprecated directory. Please change your destination folder."
+            exit 1
+        fi
+         
+    fi
+else
+    echo "[Configuration]: Destination.txt does not exist. This configures the final destination of your file. Would you like to set it up? [Y/N]"
+    #Receive Input
+    while true; do 
+        read -r configurationsetup #expect input
+        configurationsetup=${configurationsetup^^} #makes input upper case
+        case "$configurationsetup" in #checks if the input is a Y or an N, rejects any input.
+            Y) 
+                while true; do
+                    echo "[Configuration]: Enter Directory Here -> "
+                    read -r destinationFolder #expect input
+
+                    if [ -d "$destinationFolder" ]; then
+                        echo "[Configuration]: Valid directory: $destinationFolder"
+                        touch destination.txt 
+                        echo "$destinationFolder" > destination.txt
+                        break #loop in
+                    else
+                        echo "[Configuration]: Invalid directory: $destinationFolder. Please Try Again"
+                    fi
+                done
+                destination=$(destinationRead)
+
+                if [ ! -d $destination ]; then
+                    echo "[Configuration]: destination.txt contains invalid or deprecated directory. Please change your destination folder."
+                    exit 1
+                fi
+
+                break #loop out
+                ;;
+
+            N) 
+                echo "[Configuration]: Setup cancelled."
+                rm "$postTitle.cbz"
+                exit 1
+                ;;
+            *)
+                echo "[Configuration]: Invalid Input, Please Try again."
+            esac
+    done
+fi
+
+
+#the actual announcement
+echo "[Files]: Images packed to $postTitle.cbz"
+echo "[Files]: Transferring .cbz package from "$(pwd)/$postTitle.cbz" to "$destination/$postTitle.cbz""
+#make a directory of the post's title 
+mkdir -p "$destination/$postTitle"
+#move the file
+mv "$postTitle.cbz" "$destination/$postTitle/$postTitle.cbz"
+#add reddit source
+touch "$destination/$postTitle/source.txt"
+echo $1 > "$destination/$postTitle/source.txt"
+linkHistory "$1"
+#announce the success
+echo "[Files]: Transfer completed. Operations ended with 0 errors."
+tempfolderscrub
+##ERROR HANDLING AND CHECKS WILL BE PUT IN PLACE LATER!!!!##
