@@ -101,9 +101,9 @@ The purpose of this is to allow for manga readers like Komga and Kavita to organ
 
 **URL Logging**
 
-In each reddit post you install, a `source.txt` file will be included, which will include the reddit url of the post.
+In each reddit post you download, a `source.txt` file will be included, which will include the reddit url of the post.
 
-Re-manga will also create a `links.txt` file that will log all of the reddit urls you install. This is for the `-r` re-download feature that will basically install the lifetime collection of Reddit URLs that Re-Manga has collected.
+Re-manga will also create a `links.txt` file that will log all of the reddit urls you download. This is for the `-r` re-download feature that will basically install the lifetime collection of Reddit URLs that Re-Manga has collected.
 You can copy this file anywhere for safe-keeping. 
 
 **-r Parameter**
