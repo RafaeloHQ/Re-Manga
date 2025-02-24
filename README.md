@@ -4,8 +4,8 @@ Re-Manga is a CLI program that can be used to install reddit posts of Mangas/Dou
 
 # Pre-requisites
 
+**Windows**
 You might need the latest version of python for the rezip.py script to work. 
-
 After getting python:
 
  1. Press `Win + S` and search for "Command Prompt"
@@ -15,6 +15,8 @@ After getting python:
 
 In Windows, I recommend you to use Git for Windows.
 
+**Linux**
+No instructions as of now, currently fixing the config file so that you can just run it and automatically set the directory of Re-Manga to PATH. 
 
 
 #  Installation
