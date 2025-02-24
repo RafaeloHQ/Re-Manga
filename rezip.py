@@ -41,7 +41,8 @@ def cbzize(dir,archive_name): #compress the directory
 
 def differentiateOS(dir):
      if os.name == "nt":
-          dir = os.path.abspath(dir)
+          return os.path.abspath(dir)
+     else:
           return dir
 
 
